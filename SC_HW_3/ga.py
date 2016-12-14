@@ -8,13 +8,13 @@
 # Mutation Type: Insertion Mutation
 """
 
+import sys
 from random import shuffle
 from math import radians, sin, cos, asin, sqrt
+import random
 
 # <editor-fold desc="Parameters">
 g_POPULATION_SIZE = 50
-g_CROSSOVER_START = 0
-g_CROSSOVER_END = 10
 
 g_ALI535_FILENAME = "ali535.tsp"
 g_SELECTED_DATASET_FILE = g_ALI535_FILENAME
@@ -28,6 +28,7 @@ true = True
 # </editor-fold>
 
 
+# <editor-fold desc="City class">
 class City:
     def __init__(self):
         self.name_c = str(None)
@@ -53,7 +54,7 @@ class City:
         a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
         c = 2 * asin(sqrt(a))
         return c * g_EARTH_RADIUS
-
+# </editor-fold>
 
 # <editor-fold desc="The world of genetic algorithm.">
 '''
@@ -65,6 +66,8 @@ class City:
             <__best_distance, int> : Distance of best tour until now.>
 # Methods:
 '''
+
+
 class Dataset:
     def __init__(self):
         # Public:
@@ -133,56 +136,53 @@ class Dataset:
     # Selection
     @staticmethod
     def tournament_selection(population):
-        pop_copy = [[city for city in tour] for tour in population]
-        while true:
-            n = len(pop_copy)
-            last_index = n - 1
-            second_last_index = n - 2
-            winners = []
-            for i in range(0, n, 3):
-                winner = None
-                index1 = i
-                index2 = i + 1
-                index3 = i + 2
-                if index2 > last_index:
-                    winner = tour1
-                elif index2 > second_last_index:
-                    tour1 = pop_copy[index1]
-                    tour2 = pop_copy[index2]
-                    fitness1 = Dataset.compute_fitness(tour1)
-                    fitness2 = Dataset.compute_fitness(tour2)
-                    if fitness1 >= fitness2:
-                        winner = tour1
-                    else:
-                        winner = tour2
-                else:
-                    tour1 = pop_copy[index1]
-                    tour2 = pop_copy[index2]
-                    tour3 = pop_copy[index3]
-                    fitness1 = Dataset.compute_fitness(tour1)
-                    fitness2 = Dataset.compute_fitness(tour2)
-                    fitness3 = Dataset.compute_fitness(tour3)
-                    if fitness1 >= fitness2:
-                        if fitness1 >= fitness3:
-                            winner = tour1
-                        else:
-                            winner = tour3
-                    else:
-                        if fitness2 >= fitness3:
-                            winner = tour2
-                        else:
-                            winner = tour3
-                winners.append(winner)
-            print "winners count: ", len(winners)
-            if len(winners) == 1:
-                print "done"
-                return winners[0]
-            pop_copy = winners
+        n = len(population)
+        index1 = random.randint(0, n - 1)
+        index2 = random.randint(0, n - 1)
+        index3 = random.randint(0, n - 1)
+        tour1 = population[index1]
+        tour2 = population[index2]
+        tour3 = population[index3]
+        fitness1 = Dataset.compute_fitness(tour1)
+        fitness2 = Dataset.compute_fitness(tour2)
+        fitness3 = Dataset.compute_fitness(tour3)
+        if fitness1 >= fitness2:
+            if fitness1 >= fitness3:
+                return tour1
+            else:
+                return tour3
+        else:
+            if fitness2 >= fitness3:
+                return tour2
+            else:
+                return tour3
+
     # Crossover
-    def crossover(self, population):
-        tour1 = Dataset.tournament_selection(population)
-        tour2 = Dataset.tournament_selection(population)
-        # child1 =
+    def crossover(self, parent1, parent2):
+        child1 = [None for _ in range(len(parent1))]
+        child2 = [None for _ in range(len(parent2))]
+        crossover_point1 = random.randint(0, self.dimension)
+        crossover_point2 = random.randint(0, self.dimension)
+        if crossover_point1 > crossover_point2:
+            temp = crossover_point1
+            crossover_point1 = crossover_point2
+            crossover_point2 = temp
+        for i in range(crossover_point1, crossover_point2):
+            child1[i] = parent1[i]
+            child2[i] = parent2[i]
+        last_index1 = (crossover_point2 + 1) % self.dimension
+        last_index2 = (crossover_point2 + 1) % self.dimension
+        for i in range(self.dimension):
+            index = (i + crossover_point1) % self.dimension
+            city1 = parent1[index]
+            city2 = parent2[index]
+            if city2 not in child1:
+                child1[last_index1] = city2
+                last_index1 = (last_index1 + 1) % self.dimension
+            if city1 not in child2:
+                child2[last_index2] = city1
+                last_index2 = (last_index2 + 1) % self.dimension
+        return child1, child2
     # </editor-fold>
 
     def get_best_tour(self):
@@ -193,6 +193,16 @@ class Dataset:
                 (self.name_ds, self.dimension)) + "\n[\n\t" + "\n\t".join([str(city) for city in self.cities]) + "\n]"
 # </editor-fold>
 
+
+def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 100):
+    formatStr = "{0:." + str(decimals) + "f}"
+    percent = formatStr.format(100 * (iteration / float(total)))
+    filledLength = int(round(barLength * iteration / float(total)))
+    bar = '|' * filledLength + '-' * (barLength - filledLength)
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 if __name__ == "__main__":
     ds = Dataset()
@@ -224,10 +234,29 @@ if __name__ == "__main__":
     tour_list = ds.generate_population()
 
     # <editor-fold desc="Crossover">
-    # Selection for crossover
-    new_generation = []
-    for i in range(g_POPULATION_SIZE):
-        tour1 = Dataset.tournament_selection(tour_list)
-        tour2 = Dataset.tournament_selection(tour_list)
-
-    # </editor-fold>
+    for j in range(10):
+        # New Generation
+        print "======================="
+        print "iteration:", j
+        new_generation = []
+        for i in range(0, g_POPULATION_SIZE, 2):
+            printProgress(i, g_POPULATION_SIZE)
+            parent1 = Dataset.tournament_selection(tour_list)
+            parent2 = Dataset.tournament_selection(tour_list)
+            child1, child2 = ds.crossover(parent1, parent2)
+            new_generation.append(child1)
+            new_generation.append(child2)
+        print "tour_list:"
+        for tour in tour_list:
+            print "tour:"
+            for city in tour:
+                print city.name_c,
+            print "----------"
+        print "new_tour_list:"
+        for tour in new_generation:
+            print "tour:"
+            for city in tour:
+                print city.name_c,
+            print "----------"
+        tour_list = new_generation
+        # </editor-fold>
