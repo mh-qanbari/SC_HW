@@ -48,6 +48,8 @@ class City:
 
     @staticmethod
     def compute_distance(source, destination):
+        if source is None or destination is None:
+            return sys.maxint
         lat1, lon1, lat2, lon2 = map(radians, [source.coord_lat, source.coord_lon, destination.coord_lat, destination.coord_lon])
         dlat = lat2 - lat1
         dlon = lon2 - lon1
@@ -98,13 +100,15 @@ class Dataset:
 
     @staticmethod
     def compute_distance(tour):
+        if isinstance(tour, City):
+            print 'test'
         n = len(tour)
         tour_distance = 0
         for i in range(n):
             j = (i + 1) % n
             city1 = tour[i]
             city2 = tour[j]
-            tour_distance += City.get_distance(city1, city2)
+            tour_distance += City.compute_distance(city1, city2)
         return tour_distance
 
     def get_distance(self):
@@ -159,6 +163,8 @@ class Dataset:
 
     # Crossover
     def crossover(self, parent1, parent2):
+        global child1
+        global child2
         child1 = [None for _ in range(len(parent1))]
         child2 = [None for _ in range(len(parent2))]
         crossover_point1 = random.randint(0, self.dimension)
@@ -167,7 +173,7 @@ class Dataset:
             temp = crossover_point1
             crossover_point1 = crossover_point2
             crossover_point2 = temp
-        for i in range(crossover_point1, crossover_point2):
+        for i in range(crossover_point1, crossover_point2 + 1):
             child1[i] = parent1[i]
             child2[i] = parent2[i]
         last_index1 = (crossover_point2 + 1) % self.dimension
@@ -198,7 +204,8 @@ def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, bar
     formatStr = "{0:." + str(decimals) + "f}"
     percent = formatStr.format(100 * (iteration / float(total)))
     filledLength = int(round(barLength * iteration / float(total)))
-    bar = '|' * filledLength + '-' * (barLength - filledLength)
+    # bar = u"\u2588" * filledLength + ' ' * (barLength - filledLength)
+    bar = u"\u2588" * filledLength + u"\u2005\u2005\u2005" * (barLength - filledLength)
     sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
     if iteration == total:
         sys.stdout.write('\n')
@@ -244,19 +251,32 @@ if __name__ == "__main__":
             parent1 = Dataset.tournament_selection(tour_list)
             parent2 = Dataset.tournament_selection(tour_list)
             child1, child2 = ds.crossover(parent1, parent2)
+            if child1 is None or child2 is None:
+                print "child[" + str(child1) + "] , child2[" + str(child2)
             new_generation.append(child1)
             new_generation.append(child2)
-        print "tour_list:"
-        for tour in tour_list:
-            print "tour:"
-            for city in tour:
-                print city.name_c,
-            print "----------"
-        print "new_tour_list:"
+        printProgress(1, 1)
+        # print "tour_list:"
+        # for tour in tour_list:
+        #     print "tour:"
+        #     for city in tour:
+        #         print city.name_c,
+        #     print "----------"
+        # print "new_tour_list:"
+        # for tour in new_generation:
+        #     print "tour:"
+        #     for city in tour:
+        #         print city.name_c,
+        #     print "----------"
+        tour_list = []
+        tour_index = -1
         for tour in new_generation:
-            print "tour:"
+            tour_list.append(list())
+            tour_index += 1
             for city in tour:
-                print city.name_c,
-            print "----------"
-        tour_list = new_generation
+                if city is None:
+                    break
+                else:
+                    tour_list[tour_index].append(city)
+        # tour_list = [tour[:] for tour in new_generation]
         # </editor-fold>
