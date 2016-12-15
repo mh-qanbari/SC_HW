@@ -163,12 +163,14 @@ class Dataset:
 
     # Crossover
     def crossover(self, parent1, parent2):
+        if len(parent1) != 535 or len(parent2) != 535:
+            print 'here'
         global child1
         global child2
         child1 = [None for _ in range(len(parent1))]
         child2 = [None for _ in range(len(parent2))]
-        crossover_point1 = random.randint(0, self.dimension)
-        crossover_point2 = random.randint(0, self.dimension)
+        crossover_point1 = random.randint(0, self.dimension - 1)
+        crossover_point2 = random.randint(0, self.dimension - 1)
         if crossover_point1 > crossover_point2:
             temp = crossover_point1
             crossover_point1 = crossover_point2
@@ -246,7 +248,7 @@ if __name__ == "__main__":
         print "======================="
         print "iteration:", j
         new_generation = []
-        for i in range(0, g_POPULATION_SIZE, 2):
+        for i in range(0, g_POPULATION_SIZE+1, 2):
             printProgress(i, g_POPULATION_SIZE)
             parent1 = Dataset.tournament_selection(tour_list)
             parent2 = Dataset.tournament_selection(tour_list)
@@ -255,7 +257,7 @@ if __name__ == "__main__":
                 print "child[" + str(child1) + "] , child2[" + str(child2)
             new_generation.append(child1)
             new_generation.append(child2)
-        printProgress(1, 1)
+        # printProgress(g_POPULATION_SIZE, g_POPULATION_SIZE)
         # print "tour_list:"
         # for tour in tour_list:
         #     print "tour:"
