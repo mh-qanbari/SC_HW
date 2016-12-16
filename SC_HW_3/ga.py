@@ -13,8 +13,34 @@ from random import shuffle
 from math import radians, sin, cos, asin, sqrt
 import random
 
+# <editor-fold desc="Necessary Standards">
+from time import gmtime, strftime
+
+g_OUTPUT_FILE = strftime("output_%Y%m%d%H%M%S", gmtime())
+file_output = open(g_OUTPUT_FILE, 'w')
+
+
+def printl(obj):
+    orig_stdout = sys.stdout
+    sys.stdout = file_output
+    print obj
+    sys.stdout = orig_stdout
+    print obj
+
+
+def print_(obj):
+    orig_stdout = sys.stdout
+    sys.stdout = file_output
+    print obj,
+    sys.stdout = orig_stdout
+    print obj,
+# </editor-fold>
+
 # <editor-fold desc="Parameters">
 g_POPULATION_SIZE = 50
+g_CROSSOVER_PROBABILITY = 0.9
+g_MUTATION_PROBABILITY = 0.02
+g_REPLACEMENT_NEW_GENERATION_POSSIBILITY = 0.80
 
 g_ALI535_FILENAME = "ali535.tsp"
 g_SELECTED_DATASET_FILE = g_ALI535_FILENAME
@@ -88,7 +114,7 @@ class Dataset:
             tour = [self.cities[index] for index in tour_index_index]
             shuffle(tour)
             tour_list.append(tour)
-            self.suggest(tour)
+            # self.suggest(tour)
         return tour_list
     # </editor-fold>
 
@@ -101,7 +127,7 @@ class Dataset:
     @staticmethod
     def compute_distance(tour):
         if isinstance(tour, City):
-            print 'test'
+            printl('test')
         n = len(tour)
         tour_distance = 0
         for i in range(n):
@@ -127,10 +153,18 @@ class Dataset:
 
     def suggest(self, tour):
         dist = Dataset.compute_distance(tour)
-        if dist < self.__best_distance:
+        if (self.__best_distance is None) or (len(self.__best_tour) == 0) or (dist < self.__best_distance):
             self.__best_tour = tour
             self.__best_distance = dist
         return dist
+
+    def reset(self):
+        self.__best_distance = None
+        self.__best_tour = list()
+
+    def reset(self, tour):
+        self.__best_distance = Dataset.compute_distance()
+        self.__best_tour = tour
 
     def get_fitness(self):
         return 1.0 / self.__best_distance
@@ -164,7 +198,7 @@ class Dataset:
     # Crossover
     def crossover(self, parent1, parent2):
         if len(parent1) != 535 or len(parent2) != 535:
-            print 'here'
+            printl('here')
         global child1
         global child2
         child1 = [None for _ in range(len(parent1))]
@@ -193,6 +227,22 @@ class Dataset:
         return child1, child2
     # </editor-fold>
 
+    # <editor-fold desc="Mutation">
+    @staticmethod
+    def insertion_mutate(tour):
+        tour_size = len(tour)
+        index1 = random.randint(0, tour_size - 1)
+        index2 = random.randint(0, tour_size - 1)
+        if index1 > index2:
+            temp = index1
+            index1 = index2
+            index2 = temp
+        city = tour[index2]
+        del tour[index2]
+        tour.insert(index1, city)
+        return tour
+    # </editor-fold>
+
     def get_best_tour(self):
         return self.__best_tour
 
@@ -202,12 +252,12 @@ class Dataset:
 # </editor-fold>
 
 
-def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 100):
-    formatStr = "{0:." + str(decimals) + "f}"
-    percent = formatStr.format(100 * (iteration / float(total)))
-    filledLength = int(round(barLength * iteration / float(total)))
+def printProgress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
+    format_ = "{0:." + str(decimals) + "f}"
+    percent = format_.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
     # bar = u"\u2588" * filledLength + ' ' * (barLength - filledLength)
-    bar = u"\u2588" * filledLength + u"\u2005\u2005\u2005" * (barLength - filledLength)
+    bar = u"\u2588" * filled_length + u"\u2005\u2005\u2005" * (bar_length - filled_length)
     sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
     if iteration == total:
         sys.stdout.write('\n')
@@ -242,43 +292,70 @@ if __name__ == "__main__":
     # Generate population
     tour_list = ds.generate_population()
 
-    # <editor-fold desc="Crossover">
-    for j in range(10):
-        # New Generation
-        print "======================="
-        print "iteration:", j
+    for j in range(100):
+        printl("=======================")
+        printl("iteration:" + str(j))
         new_generation = []
-        for i in range(0, g_POPULATION_SIZE+1, 2):
-            printProgress(i, g_POPULATION_SIZE)
-            parent1 = Dataset.tournament_selection(tour_list)
-            parent2 = Dataset.tournament_selection(tour_list)
-            child1, child2 = ds.crossover(parent1, parent2)
-            if child1 is None or child2 is None:
-                print "child[" + str(child1) + "] , child2[" + str(child2)
-            new_generation.append(child1)
-            new_generation.append(child2)
-        # printProgress(g_POPULATION_SIZE, g_POPULATION_SIZE)
-        # print "tour_list:"
-        # for tour in tour_list:
-        #     print "tour:"
-        #     for city in tour:
-        #         print city.name_c,
-        #     print "----------"
-        # print "new_tour_list:"
-        # for tour in new_generation:
-        #     print "tour:"
-        #     for city in tour:
-        #         print city.name_c,
-        #     print "----------"
-        tour_list = []
+        # <editor-fold desc="Crossover">
+        crossover_random = random.random()
+        if crossover_random < g_CROSSOVER_PROBABILITY:
+            # New Generation
+            for i in range(0, g_POPULATION_SIZE, 2):
+                printProgress(i + 2, g_POPULATION_SIZE, "Crossover:")
+                parent1 = Dataset.tournament_selection(tour_list)
+                parent2 = Dataset.tournament_selection(tour_list)
+                child1, child2 = ds.crossover(parent1, parent2)
+                if child1 is None or child2 is None:
+                    printl("child[" + str(child1) + "] , child2[" + str(child2))
+                new_generation.append(child1)
+                new_generation.append(child2)
+                # tour_list = []
+                # tour_index = -1
+                # for tour in new_generation:
+                #     tour_list.append(list())
+                #     tour_index += 1
+                #     for city in tour:
+                #         if city is None:
+                #             break
+                #         else:
+                #             tour_list[tour_index].append(city)
+                # tour_list = [tour[:] for tour in new_generation]
+        else:
+            new_generation = [tour[:] for tour in tour_list]
+            printProgress(g_POPULATION_SIZE, g_POPULATION_SIZE, "Crossover:")
+        # </editor-fold>
+        print
+        # <editor-fold desc="Mutation">
+        for tour_index in range(g_POPULATION_SIZE):
+            printProgress(tour_index+1, g_POPULATION_SIZE, "Mutation: ")
+            mutation_random = random.random()
+            if mutation_random < g_MUTATION_PROBABILITY:
+                tour = new_generation[tour_index]
+                new_generation[tour_index] = Dataset.insertion_mutate(tour)
+        # </editor-fold>
+
+        # <editor-fold desc="Replacement">
+        # tour_list = []
         tour_index = -1
         for tour in new_generation:
-            tour_list.append(list())
             tour_index += 1
-            for city in tour:
-                if city is None:
-                    break
-                else:
-                    tour_list[tour_index].append(city)
-        # tour_list = [tour[:] for tour in new_generation]
+            printProgress(tour_index+1, g_POPULATION_SIZE, "Replacement:")
+            replacement_rand = random.random()
+            if replacement_rand < g_REPLACEMENT_NEW_GENERATION_POSSIBILITY:
+                # tour_list.append(tour[:])
+                tour_list[tour_index] = tour[:]
         # </editor-fold>
+
+        # <editor-fold desc="Show the best answer found at this iteration">
+        min_d = sys.maxint
+        index = -1
+        for tour in new_generation:
+            dist = Dataset.compute_distance(tour)
+            if min_d > dist:
+                min_d = dist
+                ds.suggest(tour)
+        printl("Answer :" + str(min_d))
+        # </editor-fold>
+
+    if ds.get_best_tour() is not None:
+        printl("Best answer :" + str(ds.get_distance()))
