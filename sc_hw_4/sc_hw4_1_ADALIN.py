@@ -5,8 +5,8 @@ import os
 g_DIRECTORY_TRAIN = "Characters-TrainSetHW4/"
 g_DIRECTORY_TEST = "Characters-TestSetHW4/"
 
-g_TRAIN_ITERATION_COUNT = 10
-g_LEARNING_RATE = 1.0
+g_TRAIN_ITERATION_COUNT = 100
+g_LEARNING_RATE = 0.5
 g_CONVERGENCE_THRESHOLD = 0.1
 
 g_DATA_ROWS_COUNT = 9
@@ -103,7 +103,7 @@ class Neuron:
             return -1
 
 
-class Adalin:
+class Adaline:
     training_count = int(50)
 
     def __init__(self, input_size, output_size):
@@ -147,8 +147,56 @@ def load_data(file_address, data_char_map):
                 data_value_list.append(value)
     return data_value_list, data_char_map
 
+
+def network_training(network, train_data_list, label_list, threshold):
+    iter = 1
+    while true:
+        iter += 1
+        max_dw = 0
+        n = len(label_list)
+        for i in range(n):
+            train_data = train_data_list[i]
+            label = label_list[i]
+            dw = network.train(train_data, label)
+            if max_dw < dw:
+                max_dw = dw
+        if max_dw < threshold:
+            break
+        if iter > Adaline.training_count:
+            break
+    return network, iter - 1
+
+
+def network_prediction(network, test_data_list, label_list, threshold):
+    incorrect_prediction = 0
+    n = len(label_list)
+    for i in range(n):
+        test_data = test_data_list[i]
+        label = label_list[i]
+        predicted_value = network.predict(test_data)
+        if label != predicted_value:
+            incorrect_prediction += 1
+    prediction_error = 100. * incorrect_prediction / n
+    return prediction_error
+
+
+def printProgress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
+    format_ = "{0:." + str(decimals) + "f}"
+    percent = format_.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
+    # bar = u"\u2588" * filledLength + ' ' * (barLength - filledLength)
+    bar = u"\u2588" * filled_length + u"\u2005\u2005\u2005" * (bar_length - filled_length)
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
+
 if __name__ == "__main__":
-    adalin = Adalin(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT)
+    Neuron.learning_rate = g_LEARNING_RATE
+    Neuron.threshold = g_CONVERGENCE_THRESHOLD
+    Adaline.training_count = g_TRAIN_ITERATION_COUNT
+
+    adaline = Adaline(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT)
     data_char_map = CharMap()
     label_char_map = CharMap()
 
@@ -161,7 +209,7 @@ if __name__ == "__main__":
                 label = label_char_map.get_mapped_value(str(file)[0])
                 train_data, data_char_map = load_data(relative_path, data_char_map)
                 train_data = train_data
-                dw = adalin.train(train_data, label)
+                dw = adaline.train(train_data, label)
                 if max_dw < dw:
                     max_dw = dw
         if max_dw < g_CONVERGENCE_THRESHOLD:
@@ -176,7 +224,7 @@ if __name__ == "__main__":
             label = label_char_map.get_mapped_value(str(file)[0])
             test_data, data_char_map = load_data(relative_path, data_char_map)
             test_data = test_data
-            predicted_value = adalin.predict(test_data)
+            predicted_value = adaline.predict(test_data)
             predicted = label_char_map.get_mapped_char(predicted_value)
             predicted_status = (predicted_value == label)
             predicted_status_list.append(predicted_status)
