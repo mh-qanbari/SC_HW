@@ -31,18 +31,18 @@ class CharMap:
             return self.__char_map[obj]
         else:
             value = self.__new_value
-            self.__new_value += 1
-            self.__char_map[obj] = value
-            return value
-            # if offered is None:
-            #     self.__new_value += 1
-            #     self.__char_map[obj] = value
-            #     return value
-            # else:
-            #     self.__char_map[obj] = offered
-            #     if self.__new_value < offered:
-            #         self.__new_value = offered + 1
-            #     return offered
+            # self.__new_value += 1
+            # self.__char_map[obj] = value
+            # return value
+            if offered is None:
+                self.__new_value += 1
+                self.__char_map[obj] = value
+                return value
+            else:
+                self.__char_map[obj] = offered
+                if self.__new_value < offered:
+                    self.__new_value = offered + 1
+                return offered
 
     def get_mapped_char(self, value):
         for obj, val in self.__char_map.iteritems():
@@ -93,6 +93,7 @@ class Neuron:
             if y_in != target:
                 dw = Neuron.learning_rate * target * data_
                 self.weights += dw
+                dw = np.abs(dw)
                 max_dw = max(dw)
             return max_dw
             # convergence_status = np.equal(old_weights, self.weights)
@@ -149,7 +150,12 @@ def load_data(file_address, data_char_map):
         for line in file_content:
             line = line.replace('\n', '')
             for char in line:
-                value = data_char_map.get_mapped_value(char)
+                if char == '#':
+                    value = data_char_map.get_mapped_value(char, 1)
+                elif char == '.':
+                    value = data_char_map.get_mapped_value(char, -1)
+                else:
+                    value = data_char_map.get_mapped_value(char, 0)
                 data_value_list.append(value)
     return data_value_list, data_char_map
 
@@ -173,7 +179,7 @@ def network_training(perceptron, train_data_list, label_list, threshold):
     return perceptron, iter - 1
 
 
-def network_prediction(perceptron, test_data_list, label_list, threshold):
+def network_prediction(perceptron, test_data_list, label_list):
     incorrect_prediction = 0
     n = len(label_list)
     for i in range(n):
@@ -206,6 +212,7 @@ if __name__ == "__main__":
     data_char_map = CharMap()
     label_char_map = CharMap()
 
+    # <editor-fold desc = "Train perceptron">
     train_data_list = list()
     train_label_list = list()
     for file in os.listdir(g_DIRECTORY_TRAIN):
@@ -213,25 +220,10 @@ if __name__ == "__main__":
             relative_path = g_DIRECTORY_TRAIN + file
             label = label_char_map.get_mapped_value(str(file)[0])
             train_data, data_char_map = load_data(relative_path, data_char_map)
-
             train_data_list.append(train_data)
             train_label_list.append(label)
-    
-    # <editor-fold desc = "Train perceptron">
-    perceptron, iter_count = network_training(perceptron, train_data_list, train_label_list, Neuron.threshold)
 
-    # while true:
-    #     max_dw = 0
-    #     for file in os.listdir(g_DIRECTORY_TRAIN):
-    #         if file.endswith(".txt"):
-    #             relative_path = g_DIRECTORY_TRAIN + file
-    #             label = label_char_map.get_mapped_value(str(file)[0])
-    #             train_data, data_char_map = load_data(relative_path, data_char_map)
-    #             dw = perceptron.train(train_data, label)
-    #             if max_dw < dw:
-    #                 max_dw = dw
-    #     if max_dw < Neuron.threshold:
-    #         break
+    perceptron, iter_count = network_training(perceptron, train_data_list, train_label_list, Neuron.threshold)
     # </editor-fold>
 
     # <editor-fold desc="Predict the test data">
@@ -245,39 +237,20 @@ if __name__ == "__main__":
             test_data_list.append(test_data)
             test_label_list.append(label)
 
-    # predicted_status_list = list()
-    # for file in os.listdir(g_DIRECTORY_TEST):
-    #     if file.endswith(".txt"):
-    #         relative_path = g_DIRECTORY_TEST + file
-    #         label = label_char_map.get_mapped_value(str(file)[0])
-    #         test_data, data_char_map = load_data(relative_path, data_char_map)
-    #         predicted_value = perceptron.predict(test_data)
-    #         predicted = label_char_map.get_mapped_char(predicted_value)
-    #         predicted_status = (predicted_value == label)
-    #         predicted_status_list.append(predicted_status)
-    #         # print file
-    #         # print predicted_status
-    #         # print
-    #
-    # n = len(predicted_status_list)
-    # true_status_count = np.count_nonzero(predicted_status_list)
-    # n_err = n - true_status_count
-    # print "Error Rate: %f" % ((float(n_err) / n) * 100)
-
-    prediction_error = network_prediction(perceptron, test_data_list, test_label_list, Neuron.threshold)
+    prediction_error = network_prediction(perceptron, test_data_list, test_label_list)
     print "Error Rate: %f" % prediction_error
     # </editor-fold>
 
-    # <editor-fold>
+    # <editor-fold desc="Report">
     step_count = 10
     threshold_list = [(1. * i / step_count) for i in range(0, step_count+1, 1)]
     iter_count_list = list()
     prediction_error_list = list()
     for threshold in threshold_list:
         printProgress(threshold, 1, "Plot Progress :")
-        perceptron = Perceptron(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT)
-        perceptron, iter_count = network_training(perceptron, train_data_list, test_label_list, threshold)
-        prediction_error = network_prediction(perceptron, test_data_list, test_label_list, threshold)
+        perceptron1 = Perceptron(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT)
+        perceptron1, iter_count = network_training(perceptron1, train_data_list, test_label_list, threshold)
+        prediction_error = network_prediction(perceptron1, test_data_list, test_label_list)
         iter_count_list.append(iter_count)
         prediction_error_list.append(prediction_error)
 
@@ -288,7 +261,6 @@ if __name__ == "__main__":
     plt.plot(threshold_list, iter_count_list, '--')
     plt.text(threshold_list[step_count/2 + 1], prediction_error_list[step_count/2 + 1], "Prediction Error")
     plt.plot(threshold_list, prediction_error_list, '-.')
-    # plt.grid(true)
     plt.show()
 
     print
@@ -296,5 +268,4 @@ if __name__ == "__main__":
     print [float("%.2f" % err) for err in prediction_error_list]
     print "Iterations :"
     print iter_count_list
-    # for threshold in threshold_list:
     # </editor-fold>

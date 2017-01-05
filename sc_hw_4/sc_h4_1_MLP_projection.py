@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 g_DIRECTORY_TRAIN = "Characters-TrainSetHW4/"
 g_DIRECTORY_TEST = "Characters-TestSetHW4/"
 
-g_TRAIN_ITERATION_COUNT = 100
+g_TRAIN_ITERATION_COUNT = 1000
 g_LEARNING_RATE = 0.1
-g_CONVERGENCE_THRESHOLD = 0.01
+g_CONVERGENCE_THRESHOLD = 0.1
 
 g_DATA_ROWS_COUNT = 9
 g_DATA_COLUMNS_COUNT = 7
@@ -66,7 +66,7 @@ class CharMap:
 
 
 class Neuron:
-    learning_rate = float(0.5)
+    learning_rate = float(1)
     threshold = 0.5
     __next_id = 0
 
@@ -145,7 +145,7 @@ class MLP:
         target_list[target] = 1
         err_list = list()
         weights_list = list()
-        # output_layer_dw = dict()
+        output_layer_dw = dict()
         i = -1
         # Output Layer Neurons
         for neuron in self.__neurons:
@@ -155,7 +155,7 @@ class MLP:
             weights_list.append(weights)
             err = (target_list[i] - output) * 0.5 * (1 + output) * (1 - output)
             dw_list = Neuron.learning_rate * err * np.append([1], output_layer_inputs)
-            # output_layer_dw[neuron] = dw_list
+            output_layer_dw[neuron] = dw_list
             err_list.append(err)
             neuron.weights = np.copy(weights + dw_list)
             self.__neurons[i] = neuron
@@ -216,7 +216,14 @@ def load_data(file_address, data_char_map):
                 else:
                     value = data_char_map.get_mapped_value(char, 0)
                 data_value_list.append(value)
-    return data_value_list, data_char_map
+    data = np.array(data_value_list).reshape((g_DATA_ROWS_COUNT, g_DATA_COLUMNS_COUNT))
+    projected_list = [0] * (g_DATA_ROWS_COUNT + g_DATA_COLUMNS_COUNT)
+    for i in range(g_DATA_ROWS_COUNT):
+        for j in range(g_DATA_COLUMNS_COUNT):
+            if data[i, j] == 1:
+                projected_list[i] += 1
+                projected_list[g_DATA_ROWS_COUNT + j] += 1
+    return projected_list, data_char_map
 
 
 def network_training(network, train_data_list, label_list, threshold, minimum_iteration=50):
@@ -268,9 +275,7 @@ if __name__ == "__main__":
     Neuron.threshold = g_CONVERGENCE_THRESHOLD
     MLP.training_count = g_TRAIN_ITERATION_COUNT
 
-    mlp_7 = MLP(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 7)
-    mlp_35 = MLP(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 35)
-    mlp_70 = MLP(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 70)
+    mlp_12 = MLP(g_DATA_ROWS_COUNT + g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 12)
     data_char_map = CharMap()
     label_char_map = CharMap()
 
@@ -285,63 +290,45 @@ if __name__ == "__main__":
             train_data_list.append(train_data)
             train_label_list.append(label)
 
-    printProgress(30, 100)
-    mlp_7, iter_count = network_training(mlp_7, train_data_list, train_label_list, Neuron.threshold)
-    printProgress(60, 100)
-    mlp_35, iter_count = network_training(mlp_35, train_data_list, train_label_list, Neuron.threshold)
-    printProgress(80, 100)
-    mlp_70, iter_count = network_training(mlp_70, train_data_list, train_label_list, Neuron.threshold)
-    printProgress(100, 100)
+    mlp_12, iter_count = network_training(mlp_12, train_data_list, train_label_list, Neuron.threshold, 200)
     # </editor-fold>
 
     # <editor-fold desc="Predict the test data">
     test_data_list = list()
     test_label_list = list()
-    for file in os.listdir(g_DIRECTORY_TEST):
-        if file.endswith(".txt"):
-            relative_path = g_DIRECTORY_TEST + file
-            label = label_char_map.get_mapped_value(str(file)[0])
-            test_data, data_char_map = load_data(relative_path, data_char_map)
-            test_data_list.append(test_data)
-            test_label_list.append(label)
 
-    prediction_error = network_prediction(mlp_7, test_data_list, test_label_list)
-    print "Error Rate (7 Neuron Hidden Layer): %f" % prediction_error
 
-    prediction_error = network_prediction(mlp_35, test_data_list, test_label_list)
-    print "Error Rate (35 Neuron Hidden Layer): %f" % prediction_error
-
-    prediction_error = network_prediction(mlp_70, test_data_list, test_label_list)
-    print "Error Rate (70 Neuron Hidden Layer): %f" % prediction_error
+    prediction_error = network_prediction(mlp_12, test_data_list, test_label_list)
+    print "Error Rate (12 Neuron Hidden Layer): %f" % prediction_error
     # </editor-fold>
 
     # <editor-fold desc="Report">
-    step_count = 100
-    # threshold_list = [(1. * i / step_count) for i in range(step_count + 1)]
-    threshold_list = [(i / 2000.) for i in range(1, step_count + 1, 5)]
-    max_theta = max(threshold_list)
-    iter_count_list = list()
-    prediction_error_list = list()
-    for threshold in threshold_list:
-        printProgress(threshold, max_theta, "Plot Progress :", "(" + u'\u0398' + " = %0.4f)" % threshold)
-        mlp1 = MLP(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 35)
-        mlp1, iter_count = network_training(mlp1, train_data_list, test_label_list, threshold, 1)
-        prediction_error = network_prediction(mlp1, test_data_list, test_label_list)
-        iter_count_list.append(iter_count)
-        prediction_error_list.append(prediction_error)
-
-    plt.title("Multilayer Perceptron")
-    plt.xlabel("Threshold")
-    plt.ylabel("Iteration | Error")
-    plt.text(threshold_list[0], iter_count_list[0], "Training Iteration")
-    plt.plot(threshold_list, iter_count_list, '--')
-    plt.text(threshold_list[0], prediction_error_list[0], "Prediction Error")
-    plt.plot(threshold_list, prediction_error_list, '-.')
-    plt.show()
-
-    print
-    print "Errors :"
-    print [float("%.2f" % err) for err in prediction_error_list]
-    print "Iterations :"
-    print iter_count_list
+    # step_count = 100
+    # # threshold_list = [(1. * i / step_count / 10.) for i in range(step_count + 1)]
+    # threshold_list = [(i / 2000.) for i in range(1, step_count + 1, 5)]
+    # max_theta = max(threshold_list)
+    # iter_count_list = list()
+    # prediction_error_list = list()
+    # for threshold in threshold_list:
+    #     printProgress(threshold, max_theta, "Plot Progress :", "(" + u'\u0398' + " = %0.4f)" % threshold)
+    #     mlp1 = MLP(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT, 35)
+    #     mlp1, iter_count = network_training(mlp1, train_data_list, test_label_list, threshold, 5)
+    #     prediction_error = network_prediction(mlp1, test_data_list, test_label_list)
+    #     iter_count_list.append(iter_count)
+    #     prediction_error_list.append(prediction_error)
+    #
+    # plt.title("Multilayer Perceptron")
+    # plt.xlabel("Threshold")
+    # plt.ylabel("Iteration | Error")
+    # plt.text(threshold_list[0], iter_count_list[0], "Training Iteration")
+    # plt.plot(threshold_list, iter_count_list, '--')
+    # plt.text(threshold_list[0], prediction_error_list[0], "Prediction Error")
+    # plt.plot(threshold_list, prediction_error_list, '-.')
+    # plt.show()
+    #
+    # print
+    # print "Errors :"
+    # print [float("%.2f" % err) for err in prediction_error_list]
+    # print "Iterations :"
+    # print iter_count_list
     # </editor-fold>

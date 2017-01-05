@@ -1,13 +1,15 @@
 # import random
 import numpy as np
 import os
+import sys
+import matplotlib.pyplot as plt
 
 g_DIRECTORY_TRAIN = "Characters-TrainSetHW4/"
 g_DIRECTORY_TEST = "Characters-TestSetHW4/"
 
 g_TRAIN_ITERATION_COUNT = 100
-g_LEARNING_RATE = 0.5
-g_CONVERGENCE_THRESHOLD = 0.1
+g_LEARNING_RATE = 0.4
+g_CONVERGENCE_THRESHOLD = 0.01
 
 g_DATA_ROWS_COUNT = 9
 g_DATA_COLUMNS_COUNT = 7
@@ -78,15 +80,14 @@ class Neuron:
             self.weights = np.append(self.weights, [0])
 
     def train(self, data, target):
-        old_weights = np.copy(self.weights)
         data_ = np.append([1], data)
         value = sum(data_ * self.weights)
         y_in = Neuron.__activation_function(value)
         err = target - y_in
-        self.weights += Neuron.learning_rate * err * data_
-        dw_array = np.abs(self.weights - old_weights)
-        max_dw = np.max(dw_array)
-        return max_dw
+        dw = Neuron.learning_rate * err * data_
+        self.weights += dw
+        dw = np.abs(dw)
+        return np.max(dw)
 
     def get_output(self, data):
         data_ = np.append([1], data)
@@ -95,12 +96,13 @@ class Neuron:
 
     @staticmethod
     def __activation_function(value):
-        if value > Neuron.threshold:
+        theta = 1 - Neuron.threshold
+        if value > theta:
             return 1
-        elif -Neuron.threshold <= value <= Neuron.threshold:
-            return 0
-        else:
+        elif value < -theta:
             return -1
+        else:
+            return 0
 
 
 class Adaline:
@@ -167,7 +169,7 @@ def network_training(network, train_data_list, label_list, threshold):
     return network, iter - 1
 
 
-def network_prediction(network, test_data_list, label_list, threshold):
+def network_prediction(network, test_data_list, label_list):
     incorrect_prediction = 0
     n = len(label_list)
     for i in range(n):
@@ -201,39 +203,62 @@ if __name__ == "__main__":
     label_char_map = CharMap()
 
     # <editor-fold desc = "Train ADALIN">
-    while true:
-        max_dw = 0
-        for file in os.listdir(g_DIRECTORY_TRAIN):
-            if file.endswith(".txt"):
-                relative_path = g_DIRECTORY_TRAIN + file
-                label = label_char_map.get_mapped_value(str(file)[0])
-                train_data, data_char_map = load_data(relative_path, data_char_map)
-                train_data = train_data
-                dw = adaline.train(train_data, label)
-                if max_dw < dw:
-                    max_dw = dw
-        if max_dw < g_CONVERGENCE_THRESHOLD:
-            break
+    train_data_list = list()
+    train_label_list = list()
+    for file in os.listdir(g_DIRECTORY_TRAIN):
+        if file.endswith(".txt"):
+            relative_path = g_DIRECTORY_TRAIN + file
+            label = label_char_map.get_mapped_value(str(file)[0])
+            train_data, data_char_map = load_data(relative_path, data_char_map)
+            train_data_list.append(train_data)
+            train_label_list.append(label)
+
+    adaline, iter_count = network_training(adaline, train_data_list, train_label_list, Neuron.threshold)
     # </editor-fold>
 
     # <editor-fold desc="Predict the test data">
-    predicted_status_list = list()
+    test_data_list = list()
+    test_label_list = list()
     for file in os.listdir(g_DIRECTORY_TEST):
         if file.endswith(".txt"):
             relative_path = g_DIRECTORY_TEST + file
             label = label_char_map.get_mapped_value(str(file)[0])
             test_data, data_char_map = load_data(relative_path, data_char_map)
-            test_data = test_data
-            predicted_value = adaline.predict(test_data)
-            predicted = label_char_map.get_mapped_char(predicted_value)
-            predicted_status = (predicted_value == label)
-            predicted_status_list.append(predicted_status)
-            print file
-            print predicted_status
-            print
+            test_data_list.append(test_data)
+            test_label_list.append(label)
 
-    n = len(predicted_status_list)
-    true_status_count = np.count_nonzero(predicted_status_list)
-    n_err = n - true_status_count
-    print "Error Rate: %f" % ((float(n_err) / n) * 100)
+    prediction_error = network_prediction(adaline, test_data_list, test_label_list)
+    print "Error Rate: %f" % prediction_error
+    # </editor-fold>
+
+    # <editor-fold desc="Report">
+    step_count = 20
+    threshold_list = [0] + [(1. * i / step_count) for i in range(1, step_count+1, 1)]
+    iter_count_list = list()
+    prediction_error_list = list()
+    for threshold in threshold_list:
+        printProgress(threshold, 1, "Plot Progress :")
+        adaline1 = Adaline(g_DATA_ROWS_COUNT * g_DATA_COLUMNS_COUNT, g_CHARACTER_COUNT)
+        adaline1, iter_count = network_training(adaline1, train_data_list, test_label_list, threshold)
+        prediction_error = network_prediction(adaline1, test_data_list, test_label_list)
+        iter_count_list.append(iter_count)
+        prediction_error_list.append(prediction_error)
+
+    plt.title("ADALINE")
+    plt.xlabel("Threshold")
+    plt.ylabel("Iteration | Error")
+    plt.text(threshold_list[9 * step_count / 10], iter_count_list[9 * step_count / 10], "Training Iteration")
+    plt.plot(threshold_list, iter_count_list, '--')
+    plt.text(threshold_list[9 * step_count / 10], prediction_error_list[9 * step_count / 10], "Prediction Error")
+    plt.plot(threshold_list, prediction_error_list, '-.')
+    plt.axis([0, 1.0, 0, 100])
+    plt.show()
+
+    print
+    # print "Thresholds :"
+    # print threshold_list
+    print "Errors :"
+    print [float("%.2f" % err) for err in prediction_error_list]
+    print "Iterations :"
+    print iter_count_list
     # </editor-fold>
